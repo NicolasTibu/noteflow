@@ -1,7 +1,8 @@
-import { ScrollView, StyleSheet, View, Alert } from 'react-native';
+import { Image, ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNotesStore } from '../../../store/notesStore';
+import { deleteNote as deleteNoteApi } from '../../../lib/api';
 import * as Haptics from 'expo-haptics';
 
 export default function NotaDetailScreen() {
@@ -25,12 +26,30 @@ export default function NotaDetailScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Archivar',
-        onPress: () => {
-          archiveNote(id!);
+        onPress: async () => {
+          await archiveNote(id!);
           router.back();
         },
       },
     ]);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    try {
+      await deleteNoteApi(id!);
+      deleteNote(id!);
+      router.back();
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Nota no encontrada') {
+        deleteNote(id!);
+        router.back();
+        return;
+      }
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'No se pudo eliminar la nota'
+      );
+    }
   };
 
   const handleDelete = async () => {
@@ -43,23 +62,35 @@ export default function NotaDetailScreen() {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            deleteNote(id!);
-            router.back();
-          },
+          onPress: handleDeleteConfirmed,
         },
       ]
     );
   };
+
+  const imageUrls = Array.from(
+    note.content.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g),
+    (match) => match[1]
+  );
+  const textWithoutImages = note.content.replace(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g, '').trim();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Card style={styles.card}>
         <Card.Title title={note.title} />
         <Card.Content>
-          <Text variant="bodyLarge" style={styles.content}>
-            {note.content}
-          </Text>
+          {imageUrls.length > 0 && (
+            <View style={styles.imagesContainer}>
+              {imageUrls.map((url) => (
+                <Image key={url} source={{ uri: url }} style={styles.noteImage} />
+              ))}
+            </View>
+          )}
+          {textWithoutImages ? (
+            <Text variant="bodyLarge" style={styles.content}>
+              {textWithoutImages}
+            </Text>
+          ) : null}
           <Text style={styles.date}>
             {new Date(note.createdAt).toLocaleDateString('es-ES', {
               year: 'numeric',

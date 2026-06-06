@@ -41,8 +41,8 @@ export default function ChecklistDetailScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Archivar',
-        onPress: () => {
-          archiveChecklist(id!);
+        onPress: async () => {
+          await archiveChecklist(id!);
           router.back();
         },
       },

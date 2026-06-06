@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '../../../../lib/db';
 import { requireAuth } from '../../../../lib/auth';
+import { getRouteParam } from '../../../../lib/route-utils';
 import { z } from 'zod';
 
 const noteUpdateSchema = z
@@ -21,9 +22,9 @@ export async function GET(request: Request, context: { params: any }) {
   }
 
   try {
-    const { id } = context.params;
+    const id = getRouteParam(request, context, 'id');
     const notes = await query(
-      'SELECT id, title, content, type, color, created_at, updated_at FROM notes WHERE id = $1 AND owner_id = $2',
+      'SELECT id, title, content, type, color, created_at, updated_at FROM public.notes WHERE id = $1 AND owner_id = $2',
       [id, auth.userId]
     );
 
@@ -61,7 +62,7 @@ export async function PATCH(request: Request, context: { params: any }) {
 
   const setClause = entries.map(([key], index) => `${key} = $${index + 1}`).join(', ');
   const values = entries.map(([, value]) => value);
-  const { id } = context.params;
+  const id = getRouteParam(request, context, 'id');
   values.push(id, auth.userId);
 
   try {
@@ -87,9 +88,9 @@ export async function DELETE(request: Request, context: { params: any }) {
   }
 
   try {
-    const { id } = context.params;
+    const id = getRouteParam(request, context, 'id');
     const [note] = await query(
-      'DELETE FROM notes WHERE id = $1 AND owner_id = $2 RETURNING id',
+      'DELETE FROM public.notes WHERE id = $1 AND owner_id = $2 RETURNING id',
       [id, auth.userId]
     );
 

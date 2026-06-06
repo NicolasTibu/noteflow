@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
   try {
     const notes = await query(
-      'SELECT id, title, content, type, color, created_at, updated_at FROM notes WHERE owner_id = $1 ORDER BY created_at DESC',
+      'SELECT id, title, content, type, color, created_at, updated_at FROM public.notes WHERE owner_id = $1 ORDER BY created_at DESC',
       [auth.userId]
     );
     return NextResponse.json(notes);
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
   const { title, type, content, color } = result.data;
   const [note] = await query(
-    'INSERT INTO notes (owner_id, title, type, content, color) VALUES ($1, $2, $3, $4, $5) RETURNING id, title, content, type, color, created_at, updated_at',
+    'INSERT INTO public.notes (owner_id, title, type, content, color) VALUES ($1, $2, $3, $4, $5) RETURNING id, title, content, type, color, created_at, updated_at',
     [auth.userId, title, type, content, color]
   );
 

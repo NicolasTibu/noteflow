@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475357605851",
+    "project_id": "noteflow-ea07e",
+    "storage_bucket": "noteflow-ea07e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475357605851:android:9dd713ac067835c8e201fe",
+        "android_client_info": {
+          "package_name": "com.cornerstudios.noteflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1C_kWFTW7_HLFGTcWHebgLzR27OkWBPw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,9 @@
+import { Platform } from 'react-native';
 import { getAuthToken } from './auth';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === 'android' ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api');
 
 const fetchApi = async <T>(
   path: string,
@@ -24,8 +27,30 @@ const fetchApi = async <T>(
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(body || 'Error al comunicarse con la API');
+    // Intentar parsear un JSON de error para mostrar un mensaje legible
+    try {
+      const json = await response.json();
+      if (json) {
+        if (typeof json.error === 'string' && json.error.length > 0) {
+          throw new Error(json.error);
+        }
+        if (typeof json.message === 'string' && json.message.length > 0) {
+          throw new Error(json.message);
+        }
+        if (Array.isArray(json.errors) && json.errors.length > 0) {
+          const combined = json.errors
+            .map((it: any) => (it?.message ? it.message : JSON.stringify(it)))
+            .join(' - ');
+          throw new Error(combined);
+        }
+        // Fallback: stringify the JSON body
+        throw new Error(JSON.stringify(json));
+      }
+    } catch (e) {
+      // Si no vino JSON, leer texto plano
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `Error ${response.status}: ${response.statusText}`);
+    }
   }
 
   return response.json();
@@ -74,7 +99,7 @@ export const createNote = async (data: CreateNoteInput): Promise<ApiNote> =>
   fetchApi<ApiNote>(`/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(cleanPayload(data)),
   }, true);
 
 export const getNote = async (id: string): Promise<ApiNote> =>
@@ -87,8 +112,18 @@ export const updateNote = async (
   fetchApi<ApiNote>(`/notes/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(cleanPayload(data)),
   }, true);
+
+function cleanPayload<T extends Record<string, any>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key of Object.keys(obj)) {
+    const val = (obj as any)[key];
+    if (val === null || val === undefined) continue;
+    out[key as keyof T] = val;
+  }
+  return out;
+}
 
 export const deleteNote = async (id: string): Promise<void> => {
   const token = await getAuthToken();
@@ -104,7 +139,9 @@ export const deleteNote = async (id: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    throw new Error('Error al eliminar nota');
+    const body = await response.text().catch(() => '');
+    const errorMessage = body ? body : 'Error al eliminar nota';
+    throw new Error(errorMessage);
   }
 };
 

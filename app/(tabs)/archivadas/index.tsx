@@ -43,16 +43,16 @@ export default function ArchivedScreen() {
     return allArchived.filter((item) => item.title.toLowerCase().includes(query));
   }, [archivedNotes, archivedChecklists, archivedIdeas, searchQuery]);
 
-  const handleUnarchive = (item: AnyNote) => {
-    if ('content' in item) unarchiveNote(item.id);
-    else if ('items' in item) unarchiveChecklist(item.id);
-    else if ('tags' in item) unarchiveIdea(item.id);
+  const handleUnarchive = async (item: AnyNote) => {
+    if ('content' in item) await unarchiveNote(item.id);
+    else if ('items' in item) await unarchiveChecklist(item.id);
+    else if ('tags' in item) await unarchiveIdea(item.id);
   };
 
-  const handleDeleteArchived = (item: AnyNote) => {
-    if ('content' in item) deleteArchivedNote(item.id);
-    else if ('items' in item) deleteArchivedChecklist(item.id);
-    else if ('tags' in item) deleteArchivedIdea(item.id);
+  const handleDeleteArchived = async (item: AnyNote) => {
+    if ('content' in item) await deleteArchivedNote(item.id);
+    else if ('items' in item) await deleteArchivedChecklist(item.id);
+    else if ('tags' in item) await deleteArchivedIdea(item.id);
   };
 
   const handleArchivedPress = (item: AnyNote) => {

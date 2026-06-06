@@ -1,4 +1,5 @@
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -7,11 +8,13 @@ import {
   View,
 } from 'react-native';
 import { Button, Card, Chip, HelperText, Switch, Text, TextInput } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
 import { useGlobalSearchParams, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import type { ZodError } from 'zod';
 import { noteSchema, checklistNoteSchema, ideaNoteSchema } from '../constants/validationSchemas';
 import { useNotesStore } from '../store/notesStore';
+import { uploadNoteImage } from '../lib/storage';
 import type { ChecklistNote, IdeaNote } from '../types';
 
 type NoteType = 'note' | 'checklist' | 'idea';
@@ -60,6 +63,9 @@ export default function NuevaNoteModal() {
   const [tagInput, setTagInput] = useState('');
   const [color, setColor] = useState('#F8EDEB');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachedImageUrl, setAttachedImageUrl] = useState<string | null>(null);
+  const [isAttachingImage, setIsAttachingImage] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const colors = ['#F8EDEB', '#DDEBF7', '#E8F5E9', '#FFF3E0', '#FCE4EC'];
 
@@ -81,6 +87,41 @@ export default function NuevaNoteModal() {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
       setTagInput('');
+    }
+  };
+
+  const handleAttachImage = async () => {
+    setAttachmentError(null);
+    try {
+      setIsAttachingImage(true);
+
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.status !== 'granted') {
+        setAttachmentError('Necesitamos permisos para acceder a tu galería');
+        return;
+      }
+
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (pickerResult.canceled) {
+        return;
+      }
+
+      const uri = pickerResult.assets[0].uri;
+      const publicUrl = await uploadNoteImage(uri);
+      setAttachedImageUrl(publicUrl);
+
+      const imageMarkdown = `\n\n![Imagen adjunta](${publicUrl})`;
+      setContent((current) => `${current}${imageMarkdown}`);
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : 'Error al adjuntar imagen');
+    } finally {
+      setIsAttachingImage(false);
     }
   };
 
@@ -107,9 +148,14 @@ export default function NuevaNoteModal() {
       }
 
       try {
-        await createNote({ title, type: 'note', content, color });
-      } catch {
-        setErrors({ _form: 'No se pudo guardar la nota en el servidor' });
+        await createNote({ title, type: 'note', content, color }, archiveOnSave);
+      } catch (error) {
+        setErrors({
+          _form:
+            error instanceof Error
+              ? error.message
+              : 'No se pudo guardar la nota en el servidor',
+        });
         return;
       }
 
@@ -137,14 +183,21 @@ export default function NuevaNoteModal() {
         return;
       }
 
-      try {
-        const created = await createNote({ title, type: 'checklist', content: '', color: null });
+        try {
+        const payload: any = { title, type: 'checklist', content: '' };
+        if (color) payload.color = color;
+        const created = await createNote(payload);
         addChecklist({
           ...(created as ChecklistNote),
           items: parsedItems,
         });
-      } catch {
-        setErrors({ _form: 'No se pudo guardar la tarea en el servidor' });
+      } catch (error) {
+        setErrors({
+          _form:
+            error instanceof Error
+              ? error.message
+              : 'No se pudo guardar la tarea en el servidor',
+        });
         return;
       }
 
@@ -160,14 +213,21 @@ export default function NuevaNoteModal() {
     }
 
     try {
-      const created = await createNote({ title, type: 'idea', content: '', color });
+      const payload: any = { title, type: 'idea', content: '' };
+      if (color) payload.color = color;
+      const created = await createNote(payload);
       addIdea({
         ...(created as IdeaNote),
         tags: tagsToSave,
         color,
       });
-    } catch {
-      setErrors({ _form: 'No se pudo guardar la idea en el servidor' });
+    } catch (error) {
+      setErrors({
+        _form:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo guardar la idea en el servidor',
+      });
       return;
     }
 
@@ -205,6 +265,23 @@ export default function NuevaNoteModal() {
                   error={!!errors.content}
                 />
                 {errors.content && <HelperText type="error">{errors.content}</HelperText>}
+
+                <Button
+                  mode="outlined"
+                  onPress={handleAttachImage}
+                  loading={isAttachingImage}
+                  disabled={isAttachingImage}
+                  style={styles.attachButton}
+                >
+                  Adjuntar a nota
+                </Button>
+                {attachmentError && <HelperText type="error">{attachmentError}</HelperText>}
+                {attachedImageUrl ? (
+                  <View style={styles.attachmentPreview}>
+                    <Text style={styles.attachmentLabel}>Imagen adjunta</Text>
+                    <Image source={{ uri: attachedImageUrl }} style={styles.attachmentImage} />
+                  </View>
+                ) : null}
 
                 <View style={styles.archiveRow}>
                   <Text variant="bodyMedium">Guardar en archivadas</Text>
@@ -363,6 +440,27 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
+  },
+  attachButton: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  attachmentPreview: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  attachmentLabel: {
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F4F4F4',
   },
   button: {
     marginTop: 8,

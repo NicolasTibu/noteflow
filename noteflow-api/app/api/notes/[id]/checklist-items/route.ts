@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
 import { requireAuth } from '../../../../../lib/auth';
+import { getRouteParam } from '../../../../../lib/route-utils';
 import { z } from 'zod';
 
 const checklistItemSchema = z.object({
@@ -15,9 +16,9 @@ export async function GET(request: Request, context: { params: any }) {
   }
 
   try {
-    const { id } = context.params;
+    const id = getRouteParam(request, context, 'id');
     const noteExists = await query(
-      'SELECT 1 FROM notes WHERE id = $1 AND owner_id = $2',
+      'SELECT 1 FROM public.notes WHERE id = $1 AND owner_id = $2',
       [id, auth.userId]
     );
 
@@ -26,7 +27,7 @@ export async function GET(request: Request, context: { params: any }) {
     }
 
     const items = await query(
-      'SELECT * FROM checklist_items WHERE note_id = $1 ORDER BY id',
+      'SELECT * FROM public.checklist_items WHERE note_id = $1 ORDER BY id',
       [id]
     );
     return NextResponse.json(items);
@@ -48,7 +49,7 @@ export async function POST(request: Request, context: { params: any }) {
     return NextResponse.json({ errors: result.error.issues }, { status: 400 });
   }
 
-  const { id } = context.params;
+  const id = getRouteParam(request, context, 'id');
   const noteExists = await query(
     'SELECT 1 FROM notes WHERE id = $1 AND owner_id = $2',
     [id, auth.userId]
@@ -60,7 +61,7 @@ export async function POST(request: Request, context: { params: any }) {
 
   const { text, is_completed = false } = result.data;
   const [item] = await query(
-    'INSERT INTO checklist_items (note_id, text, is_completed) VALUES ($1, $2, $3) RETURNING *',
+    'INSERT INTO public.checklist_items (note_id, text, is_completed) VALUES ($1, $2, $3) RETURNING *',
     [id, text, is_completed]
   );
 

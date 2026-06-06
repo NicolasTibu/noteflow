@@ -5,7 +5,7 @@ import { signToken, verifyPassword } from '../../../../lib/auth';
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string(),
 });
 
 export async function POST(request: Request) {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     email: string;
     password_hash: string;
   }>(
-    'SELECT id, email, password_hash FROM users WHERE email = $1',
+    'SELECT id, email, password_hash FROM public.users WHERE email = $1',
     [email]
   );
 

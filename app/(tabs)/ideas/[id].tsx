@@ -25,8 +25,8 @@ export default function IdeaDetailScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Archivar',
-        onPress: () => {
-          archiveIdea(id!);
+        onPress: async () => {
+          await archiveIdea(id!);
           router.back();
         },
       },

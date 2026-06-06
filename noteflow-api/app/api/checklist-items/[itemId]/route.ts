@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '../../../../lib/db';
 import { requireAuth } from '../../../../lib/auth';
+import { getRouteParam } from '../../../../lib/route-utils';
 import { z } from 'zod';
 
 const checklistItemUpdateSchema = z.object({
@@ -20,10 +21,10 @@ export async function PATCH(request: Request, context: { params: any }) {
     return NextResponse.json({ errors: result.error.issues }, { status: 400 });
   }
 
-  const { itemId } = context.params;
+  const itemId = getRouteParam(request, context, 'itemId');
   const { is_completed } = result.data;
   const [item] = await query(
-    'UPDATE checklist_items SET is_completed = $1 FROM notes WHERE checklist_items.id = $2 AND checklist_items.note_id = notes.id AND notes.owner_id = $3 RETURNING checklist_items.*',
+    'UPDATE public.checklist_items SET is_completed = $1 FROM public.notes WHERE public.checklist_items.id = $2 AND public.checklist_items.note_id = public.notes.id AND public.notes.owner_id = $3 RETURNING public.checklist_items.*',
     [is_completed, itemId, auth.userId]
   );
 
@@ -41,9 +42,9 @@ export async function DELETE(request: Request, context: { params: any }) {
   }
 
   try {
-    const { itemId } = context.params;
+    const itemId = getRouteParam(request, context, 'itemId');
     const [item] = await query(
-      'DELETE FROM checklist_items USING notes WHERE checklist_items.id = $1 AND checklist_items.note_id = notes.id AND notes.owner_id = $2 RETURNING checklist_items.id',
+      'DELETE FROM public.checklist_items USING public.notes WHERE public.checklist_items.id = $1 AND public.checklist_items.note_id = public.notes.id AND public.notes.owner_id = $2 RETURNING public.checklist_items.id',
       [itemId, auth.userId]
     );
 

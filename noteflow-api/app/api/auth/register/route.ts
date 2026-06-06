@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = result.data;
-  const existingUsers = await query('SELECT id FROM users WHERE email = $1', [email]);
+  const existingUsers = await query('SELECT id FROM public.users WHERE email = $1', [email]);
 
   if (existingUsers.length) {
     return NextResponse.json({ error: 'Ya existe un usuario con ese correo' }, { status: 409 });
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     id: string;
     email: string;
   }>(
-    'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
+    'INSERT INTO public.users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
     [email, passwordHash]
   );
 
